@@ -24,28 +24,29 @@ The original system is a classical monolithic e‑commerce application where Use
 ### Visual (Monolith)
 ```mermaid
 flowchart LR
-  Client[Web Client]
-  Monolith[Monolithic App]
-  DB[(Single Database)]
-  External[External Services\n(payment, email)]
+    Client["Web Client"]
+    Monolith["Monolithic App"]
+    DB[("Single Database")]
+    External["External Services<br/>(payment, email)"]
 
-  Client -->|HTTP| Monolith
-  Monolith --> DB
-  Monolith --> External
-  subgraph Monolith
-    Auth[Auth]
-    Catalog[Catalog]
-    Inventory[Inventory]
-    Orders[Orders]
-    UI[UI/API Layer]
-    Auth --> UI
-    Catalog --> UI
-    Inventory --> UI
-    Orders --> UI
-  end
+    Client -->|HTTP| Monolith
+    Monolith --> DB
+    Monolith --> External
+
+    subgraph MonoDetails ["Monolithic App Internals"]
+        UI["UI/API Layer"]
+        Auth["Auth"]
+        Catalog["Catalog"]
+        Inventory["Inventory"]
+        Orders["Orders"]
+        
+        Auth --> UI
+        Catalog --> UI
+        Inventory --> UI
+        Orders --> UI
+    end
 ```
 
-![Architecture Diagram](./Monolithic.png)
 ---
 
 ## 2. Architecture Decision Records (ADRs)
@@ -294,20 +295,21 @@ The choice is grounded in the code: the project implements publisher logic in th
 
 ```mermaid
 flowchart LR
-  Browser[Web Client]
-  Gateway[API Gateway\n(YARP)]
-  BFF[Web BFF]
-  Auth[Auth Service]
-  Order[OrderService\n(SQL Server)]
-  Catalog[ProductCatalogService\n(MongoDB)]
-  Inventory[InventoryService\n(MongoDB)]
-  Notification[NotificationService]
-  Rabbit[Message Broker\n(RabbitMQ)]
-  Redis[Cache (optional)]
-  DBOrder[(SQL Server)]
-  DBCatalog[(MongoDB)]
-  DBInventory[(MongoDB)]
-  External[External Systems\n(payment, email provider)]
+  Browser["Web Client"]
+  Gateway["API Gateway<br/>(YARP)"]
+  BFF["Web BFF"]
+  Auth["Auth Service"]
+  Order["OrderService<br/>(SQL Server)"]
+  Catalog["ProductCatalogService<br/>(MongoDB)"]
+  Inventory["InventoryService<br/>(MongoDB)"]
+  Notification["NotificationService"]
+  Rabbit["Message Broker<br/>(RabbitMQ)"]
+  Redis["Cache (optional)"]
+  DBOrder[("SQL Server")]
+  DBCatalog[("MongoDB")]
+  DBInventory[("MongoDB")]
+  External["External Systems<br/>(payment, email provider)"]
+  Prometheus[("Prometheus<br/>(Metrics)")]
 
   Browser -->|HTTPS| Gateway
   Gateway -->|Route| BFF
@@ -326,9 +328,8 @@ flowchart LR
   Inventory --> Redis
   Order --> External
   Notification --> External
-  Gateway -->|observability| Prometheus[(Metrics)]
+  Gateway -->|observability| Prometheus
 ```
-![Architecture Diagram](./Microservicies.png)
 
 ### Notes and Rationale
 - `OrderService` is the transactional source of truth and publishes domain events to `RabbitMQ` after committing local transactions.
