@@ -1,0 +1,273 @@
+services:
+
+  gateway:
+    build: ./GatewayService
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - SEQ_URL=http://seq:5341
+      - Jwt__Key=SuperSecretKeyForSaleApp1234567890!!
+      - Jwt__Issuer=SaleApp
+      - Jwt__Audience=SaleAppUsers
+    depends_on:
+      order-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      product-catalog-service:
+        condition: service_healthy
+      bff-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  # ─── .NET 8 — SQL Server ────────────────────────────────────────────────────
+  order-service:
+    build: ./OrderService
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - SEQ_URL=http://seq:5341
+      - ConnectionStrings__DefaultConnection=Server=mssql;Database=orderdb;User Id=sa;Password=YourStrongPassword123!;TrustServerCertificate=True;
+      - Jwt__Key=SuperSecretKeyForSaleApp1234567890!!
+      - Jwt__Issuer=SaleApp
+      - Jwt__Audience=SaleAppUsers
+      - Services__CatalogUrl=http://product-catalog-service:8081
+      - Services__InventoryUrl=http://inventory-service:8083
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+      - RabbitMQ__VirtualHost=/
+      - RabbitMQ__Exchange=order.events
+      - InternalSecret=InternalServiceSecret2024!!
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  # ─── Node.js — MongoDB (catalogdb) ─────────────────────────────────────────
+  product-catalog-service:
+    build: ./ProductCatalogService
+    environment:
+      - PORT=8081
+      - SEQ_URL=http://seq:5341
+      - MONGO_URI=mongodb://mongodb-catalog:27017/catalogdb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_TTL_DEFAULT=120
+      - REDIS_TTL_GIFT_BY_ID=60
+      - REDIS_TTL_GIFT_LIST=120
+      - REDIS_TTL_DONOR_BY_ID=120
+      - REDIS_TTL_DONOR_LIST=180
+      - JWT_SECRET=SuperSecretKeyForSaleApp1234567890!!
+      - JWT_ISSUER=SaleApp
+      - JWT_AUDIENCE=SaleAppUsers
+      - INTERNAL_SECRET=InternalServiceSecret2024!!
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_VHOST=/
+      - RABBITMQ_EXCHANGE=order.events
+    depends_on:
+      - mongodb-catalog
+      - rabbitmq
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  # ─── Node.js — MongoDB (inventorydb) ───────────────────────────────────────
+  inventory-service:
+    build: ./InventoryService
+    environment:
+      - PORT=8083
+      - SEQ_URL=http://seq:5341
+      - MONGO_URI=mongodb://mongodb-inventory:27017/inventorydb
+      - JWT_SECRET=SuperSecretKeyForSaleApp1234567890!!
+      - JWT_ISSUER=SaleApp
+      - JWT_AUDIENCE=SaleAppUsers
+      - INTERNAL_SECRET=InternalServiceSecret2024!!
+      - CATALOG_URL=http://product-catalog-service:8081
+      - ORDER_URL=http://order-service:8080
+      - NOTIFICATION_URL=http://notification-service:8084
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_VHOST=/
+      - RABBITMQ_EXCHANGE=order.events
+    depends_on:
+      - mongodb-inventory
+      - rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8083/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  # ─── Node.js — no DB ────────────────────────────────────────────────────────
+  notification-service:
+    build: ./NotificationService
+    environment:
+      - PORT=8084
+      - SEQ_URL=http://seq:5341
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - FROM_EMAIL=${SMTP_USER:-}
+      - ORDER_URL=http://order-service:8080
+      - INTERNAL_SECRET=InternalServiceSecret2024!!
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_VHOST=/
+      - RABBITMQ_EXCHANGE=order.events
+    depends_on:
+      - rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8084/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  bff-service:
+    build: ./BffService
+    environment:
+      - PORT=8090
+      - SEQ_URL=http://seq:5341
+      - ORDER_URL=http://order-service:8080
+      - CATALOG_URL=http://product-catalog-service:8081
+      - JWT_SECRET=SuperSecretKeyForSaleApp1234567890!!
+      - JWT_ISSUER=SaleApp
+      - JWT_AUDIENCE=SaleAppUsers
+    depends_on:
+      - order-service
+      - product-catalog-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8090/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - sale-network
+
+  # ─── Databases ──────────────────────────────────────────────────────────────
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrongPassword123!
+      - MSSQL_PID=Express
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrongPassword123!' -Q 'SELECT 1' -No -C || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - sale-network
+
+  mongodb-catalog:
+    image: mongo:7
+    volumes:
+      - mongodb_catalog_data:/data/db
+    networks:
+      - sale-network
+
+  mongodb-inventory:
+    image: mongo:7
+    volumes:
+      - mongodb_inventory_data:/data/db
+    networks:
+      - sale-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - sale-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - sale-network
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5341:5341"
+    volumes:
+      - seq_data:/data
+    networks:
+      - sale-network
+
+volumes:
+  mssql_data:
+  mongodb_catalog_data:
+  mongodb_inventory_data:
+  rabbitmq_data:
+  redis_data:
+  seq_data:
+
+networks:
+  sale-network:
+    driver: bridge

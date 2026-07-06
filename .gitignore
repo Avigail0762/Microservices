@@ -1,0 +1,66 @@
+# ====================================================================
+# Node.js Dependencies (ProductCatalogService, BffService, etc.)
+# ====================================================================
+node_modules/
+jspm_packages/
+web_runtime/
+package-lock.json.log
+yarn.lock
+pnpm-lock.yaml
+.npm/
+.eslintcache
+.stylelintcache
+*.log
+*.log.*
+
+# ====================================================================
+# .NET Build and Output (OrderService, GatewayService, etc.)
+# ====================================================================
+bin/
+obj/
+/artifacts/
+
+# .NET User-secrets and personal overrides
+appsettings.Development.json
+*.user
+*.userosscache
+*.sln.docstates
+
+# ====================================================================
+# Docker and Environment Variables
+# ====================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ====================================================================
+# IDE, Editors and OS Files
+# ====================================================================
+# VS Code
+.vscode/
+!.vscode/extensions.json
+.history/
+*.code-workspace
+
+# Visual Studio
+.vs/
+UserSecretsId.txt
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating Systems
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ====================================================================
+# Databases and Local Storage (If mapped locally outside docker volumes)
+# ====================================================================
+*.db
+*.sqlite
+.mongo-data/
+.redis-data/
