@@ -328,6 +328,7 @@ flowchart LR
   Notification --> External
   Gateway -->|observability| Prometheus[(Metrics)]
 ```
+![Architecture Diagram](./Microservicies.png)
 
 ### Notes and Rationale
 - `OrderService` is the transactional source of truth and publishes domain events to `RabbitMQ` after committing local transactions.
